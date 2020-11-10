@@ -175,6 +175,7 @@ return [
      * Unit Service Providers...
      */
     App\Units\Core\Providers\UnitServiceProvider::class,
+    App\Units\Auth\Providers\UnitServiceProvider::class,
 
   ],
 
