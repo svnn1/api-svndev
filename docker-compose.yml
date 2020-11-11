@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  svndev-php:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile
+    image: php:7.4.12-fpm
+    container_name: svndev-php
+    restart: unless-stopped
+    tty: true
+    environment:
+      SERVICE_NAME: svndev-php
+      SERVICE_TAGS: dev
+      VIRTUAL_HOST: api.svndev.test
+    working_dir: /var/www
+    volumes:
+      - .:/var/www
+      - ./docker/php/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini
+    networks:
+      - svndev-network
+    links:
+      - svndev-postgres
+      - svndev-mysql
+      - svndev-redis
+
+  svndev-nginx:
+    image: nginx:alpine
+    container_name: svndev-nginx
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - .:/var/www
+      - ./docker/nginx/:/etc/nginx/conf.d
+    networks:
+      - svndev-network
+
+  svndev-mysql:
+    image: library/mysql:5.7.32
+    container_name: svndev-mysql
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_DATABASE=svndev
+      - MYSQL_ROOT_PASSWORD=svndev
+      - MYSQL_USER=svndev
+      - MYSQL_PASSWORD=svndev
+    volumes:
+      - svndev-mysql-data:/var/lib/mysql
+    networks:
+      - svndev-network
+
+  svndev-postgres:
+    image: postgres:latest
+    container_name: svndev-postgres
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=svndev
+      - POSTGRES_USER=svndev
+      - POSTGRES_PASSWORD=svndev
+    volumes:
+      - svndev-postgres-data:/var/lib/postgresql/data
+    networks:
+      - svndev-network
+
+  svndev-redis:
+    image: redis:latest
+    container_name: svndev-redis
+    command: redis-server --requirepass svndev
+    restart: unless-stopped
+    volumes:
+      - svndev-redis-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - svndev-network
+
+  svndev-queue:
+    image: php:7.4.12-fpm
+    container_name: svndev-queue
+    command: php artisan queue:listen
+    restart: unless-stopped
+    volumes:
+      - .:/var/www
+    networks:
+      - svndev-network
+    links:
+      - svndev-postgres
+      - svndev-mysql
+      - svndev-redis
+
+networks:
+  svndev-network:
+    driver: bridge
+
+volumes:
+  svndev-mysql-data:
+    driver: local
+
+  svndev-postgres-data:
+    driver: local
+
+  svndev-redis-data:
+    driver: local
